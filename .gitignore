@@ -1,0 +1,18 @@
+# Sanal Ortam
+.venv/
+venv/
+env/
+
+# Python Ön Bellek Dosyaları
+__pycache__/
+*.pyc
+
+# Ortam Değişkenleri
+.env
+
+# Qdrant / Vektör Veri Tabanı (Eğer local diske yazdırdıysan)
+qdrant_storage/
+chroma_db/
+
+# İsteğe Bağlı: Yüklenen PDF'leri gizlemek istersen (Sadece klasör yapısı gider, içindeki PDF'ler gitmez)
+Data/*.pdf
