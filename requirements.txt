@@ -6,3 +6,5 @@ langchain-qdrant
 qdrant-client
 pypdf
 pydantic
+langchain-experimental
+fastembed

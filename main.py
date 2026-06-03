@@ -1,80 +1,51 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from langchain_community.llms import Ollama
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse, RedirectResponse
+import shutil
+import os
 
+# Yeni mimariye uygun importlarımız
 from database import get_vector_store
-from ingest import ingest_directory_documents
+from ingest import ingest_single_pdf
+from schemas import QueryRequest
+from rag_service import generate_rag_stream
 
 app = FastAPI(
     title="Local Academic RAG API",
-    description="FastAPI, Qdrant ve Ollama (Llama3) tabanlı yerel akademik asistan API'si"
+    description="FastAPI ve modüler servis mimarisine sahip Akademik Asistan"
 )
 
-# Pydantic şeması (Gelen istek gövdesi için)
-class QueryRequest(BaseModel):
-    question: str
-
-def format_docs(docs):
-    """Gelen dökümanları birleştirir ve hangi PDF'ten geldiğini (metadata) belirtir."""
-    formatted = []
-    for doc in docs:
-        source = doc.metadata.get("source", "Bilinmeyen Kaynak")
-        page = doc.metadata.get("page", 0) + 1
-        formatted.append(f"[Kaynak: {source}, Sayfa: {page}]\n{doc.page_content}")
-    return "\n\n".join(formatted)
-
-@app.post("/ingest", summary="Data klasöründeki PDF'leri veri tabanına yükler")
-def run_ingest():
+@app.post("/upload", summary="Arayüzden gelen PDF'i Qdrant'a ekler")
+async def upload_and_ingest(file: UploadFile = File(...)):
+    temp_file_path = f"temp_{file.filename}"
     try:
-        result = ingest_directory_documents()
+        # Dosyayı Streamlit'ten al ve geçici olarak diske kaydet
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Dosyayı Qdrant'a işle
+        result = ingest_single_pdf(temp_file_path)
+        
+        # İşlem bitince geçici PDF'i sil
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+            
         return {"status": "success", "message": result}
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ingest hatası: {str(e)}")
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=f"Dosya işleme hatası: {str(e)}")
 
-@app.post("/query", summary="Dokümanlara akademik soru sorar")
-def answer_question(payload: QueryRequest):
+@app.post("/query", summary="Dokümanlara akademik soru sorar (Streaming)")
+async def answer_question(payload: QueryRequest):
     try:
-        vector_store = get_vector_store()
-        # En yakın 4 dökümanı getir
-        retriever = vector_store.as_retriever(search_kwargs={"k": 4})
-        
-        # Local Llama 3 bağlantısı
-        llm = Ollama(model="llama3")
-        
-        template = """Sen gelişmiş bir akademik araştırmacısın. Aşağıdaki bağlam (context) bilgilerini 
-        kullanarak sorulan soruyu bilimsel ve tarafsız bir dille cevapla. 
-        Cevabını oluştururken bağlamda geçen kaynak bilgilerine sadık kal.
-        Eğer bilgi bağlamda yoksa, 'Verilen dökümanlarda bu konuya dair bilgi bulunamadı.' de.
-        
-        Bağlam:
-        {context}
-        
-        Soru: {question}
-        
-        Cevap:"""
-        
-        prompt = PromptTemplate.from_template(template)
-        
-        # LCEL Zinciri
-        rag_chain = (
-            {"context": retriever | format_docs, "question": RunnablePassthrough()}
-            | prompt
-            | llm
-            | StrOutputParser()
+        # Tüm yapay zeka işlemleri rag_service üzerinden çağrılır
+        return StreamingResponse(
+            generate_rag_stream(payload.question), 
+            media_type="text/plain"
         )
-        
-        # Soruyu işlet ve cevabı dön
-        answer = rag_chain.invoke(payload.question)
-        return {"question": payload.question, "answer": answer}
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sorgu işlenirken hata oluştu: {str(e)}")
-
-
-from fastapi.responses import RedirectResponse
 
 @app.get("/", include_in_schema=False)
 def root():

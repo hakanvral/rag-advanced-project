@@ -1,48 +1,39 @@
 import os
-from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_qdrant import QdrantVectorStore
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_qdrant import QdrantVectorStore ,RetrievalMode
 
 # database.py dosyasından gerekli ayarları çekiyoruz
-from database import get_embeddings, QDRANT_URL, COLLECTION_NAME
+from database import get_dense_embeddings, QDRANT_URL, COLLECTION_NAME ,get_sparse_embeddings
 
-DATA_DIR = "./Data"
 
-def ingest_directory_documents():
-    """Data klasöründeki tüm PDF'leri okur ve Qdrant'a yükler."""
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-        return "Data klasörü bulunamadı, yeni bir tane oluşturuldu. Lütfen içine PDF atın."
+def ingest_single_pdf(file_path: str):
 
-    print(f"'{DATA_DIR}' klasöründeki dökümanlar taranıyor...")
-    # Klasör içindeki tüm PDF'leri otomatik algılar
-    loader = PyPDFDirectoryLoader(DATA_DIR)
+    print(f"{file_path} okunuyor ve Qdrant'a yükleniyor...")
+    
+    loader = PyPDFLoader(file_path)
     documents = loader.load()
     
     if not documents:
-        return "Klasörün içinde işlenecek PDF bulunamadı."
+        return "PDF içinden metin çikarilamadi."
         
-    print(f"Toplam {len(documents)} sayfa döküman bulundu. Parçalanıyor (Chunking)...")
-    
-    # Akademik metinler için optimize edilmiş chunking
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
+    # SemanticChunker ->
+    text_splitter = SemanticChunker(
+        get_dense_embeddings(),
+        breakpoint_threshold_type="percentile" # Anlamın en çok koptuğu %X'lik dilimlerde kes
     )
+
     chunks = text_splitter.split_documents(documents)
     
-    print(f"{len(chunks)} adet metin parçası Qdrant'a yükleniyor...")
-    
-    # from_documents metodu: Koleksiyon yoksa sıfırdan oluşturur, varsa üstüne ekler
+    # Qdrant'a yükleme (Metin vektörleri)
     QdrantVectorStore.from_documents(
         chunks,
-        get_embeddings(),
+        embedding=get_dense_embeddings(),
+        sparse_embedding=get_sparse_embeddings(),
         url=QDRANT_URL,
         collection_name=COLLECTION_NAME,
+        retrieval_mode=RetrievalMode.HYBRID,
+        force_recreate=True,  
     )
     
-    return f"Başarılı! {len(chunks)} parça veri Qdrant'a indekslendi."
-
-if __name__ == "__main__":
-    # Test etmek için direkt çalıştırılabilir
-    print(ingest_directory_documents())
+    return f"Başarılı! {len(chunks)} parça akademik metin veri tabanına eklendi."
