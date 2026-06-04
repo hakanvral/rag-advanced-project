@@ -2,7 +2,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_qdrant import QdrantVectorStore ,RetrievalMode
 
-# database.py dosyasından gerekli ayarları çekiyoruz
+
 from database import get_dense_embeddings, QDRANT_URL, COLLECTION_NAME ,get_sparse_embeddings
 
 
@@ -16,15 +16,15 @@ def ingest_single_pdf(file_path: str):
     if not documents:
         return "PDF içinden metin çikarilamadi."
         
-    # SemanticChunker ->
+   
     text_splitter = SemanticChunker(
         get_dense_embeddings(),
-        breakpoint_threshold_type="percentile" # Anlamın en çok koptuğu %X'lik dilimlerde kes
+        breakpoint_threshold_type="percentile" 
     )
 
     chunks = text_splitter.split_documents(documents)
     
-    # Qdrant'a yükleme (Metin vektörleri)
+    #
     QdrantVectorStore.from_documents(
         chunks,
         embedding=get_dense_embeddings(),
@@ -35,4 +35,4 @@ def ingest_single_pdf(file_path: str):
         force_recreate=True,  
     )
     
-    return f"Başarılı! {len(chunks)} parça akademik metin veri tabanına eklendi."
+    return f" {len(chunks)} parça akademik metin veri tabanına eklendi."
