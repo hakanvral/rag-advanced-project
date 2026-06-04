@@ -5,10 +5,10 @@ import time
 # FastAPI Sunucu Adresi
 BASE_URL = "http://127.0.0.1:8000"
 
-# 1. Düzen: Sohbet deneyimi için "centered" (ortalanmış) her zaman daha şıktır.
-st.set_page_config(page_title="Akademik Asistan", page_icon="🪶", layout="centered")
 
-# 2. Minimalist CSS Enjeksiyonu
+st.set_page_config(page_title="Akademik Asistan", layout="centered")
+
+
 st.markdown("""
     <style>
     /* Varsayılan Streamlit menülerini ve footer'ı gizle */
@@ -39,11 +39,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Şık ve Sade Ana Başlık
 st.markdown("<h2 style='text-align: center; color: #2e3b4e; margin-bottom: 0;'>Akademik Araştırma Asistanı</h2>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #6c757d; font-size: 14px; margin-bottom: 2rem;'>Yapay Zeka Destekli Belge Analizi</p>", unsafe_allow_html=True)
 
-# --- SideBar (Minimalist) ---
 with st.sidebar:
     st.markdown("### 📄 Belge Yönetimi")
     
@@ -66,13 +64,8 @@ with st.sidebar:
                 except Exception as e:
                     st.error("Sunucuya ulaşılamadı. FastAPI açık mı?")
 
-    st.markdown("---")
-    st.markdown("### ⚙️ Sistem Durumu")
-    # Kalabalık arka plan renkleri yerine zarif metin göstergeleri
-    st.markdown("🟢 **LLM:** Aktif")
-    st.markdown("🟢 **Vektör DB:** Aktif")
 
-# --- Sohbet Arayüzü ---
+
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
