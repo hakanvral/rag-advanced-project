@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 import shutil
 import os
 
-# Yeni mimariye uygun importlarımız
 from database import get_vector_store
 from ingest import ingest_single_pdf
 from schemas import QueryRequest
@@ -39,7 +38,6 @@ async def upload_and_ingest(file: UploadFile = File(...)):
 @app.post("/query", summary="Dokümanlara akademik soru sorar (Streaming)")
 async def answer_question(payload: QueryRequest):
     try:
-        # Tüm yapay zeka işlemleri rag_service üzerinden çağrılır
         return StreamingResponse(
             generate_rag_stream(payload.question), 
             media_type="text/plain"
@@ -49,10 +47,10 @@ async def answer_question(payload: QueryRequest):
 
 @app.get("/", include_in_schema=False)
 def root():
-    # Doğrudan arayüze yönlendirir
+    
     return RedirectResponse(url="/docs")
 
 if __name__ == "__main__":
     import uvicorn
-    # Uygulamayı 8000 portunda ayağa kaldırır
+   
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
