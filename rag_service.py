@@ -8,7 +8,6 @@ from database import get_vector_store
 LLM_MODEL = "qwen2:7B"
 
 def format_docs(docs):
-    """Gelen dökümanları meta verileriyle birleştirir."""
     formatted = []
     for doc in docs:
         source = doc.metadata.get("source", "Bilinmeyen Kaynak")
@@ -48,6 +47,5 @@ async def generate_rag_stream(question: str):
         | StrOutputParser()
     )
     
-    # Modelden gelen cevabı Stream (akış) olarak dışarı yolla
     for chunk in rag_chain.stream(question):
         yield chunk
